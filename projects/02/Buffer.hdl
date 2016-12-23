@@ -1,0 +1,11 @@
+// This file is created as a helper
+// function for ALU.hdl in this folder.
+// File name: projects/02/Buffer.hdl
+
+CHIP Buffer{
+      IN in;
+      OUT out;
+
+      PARTS:
+      And(a=in, b=in, out=out);
+}

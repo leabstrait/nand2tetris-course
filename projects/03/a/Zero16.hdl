@@ -1,0 +1,11 @@
+// This file is created as a helper
+// function for ALU.hdl in this folder.
+// File name: projects/02/Zero16.hdl
+
+CHIP Zero16{
+      IN in[16];
+      OUT out[16];
+
+      PARTS:
+      And16(a=in, b=false, out=out);
+}

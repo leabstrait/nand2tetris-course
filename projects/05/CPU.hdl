@@ -1,0 +1,102 @@
+// This file is part of www.nand2tetris.org
+// and the book "The Elements of Computing Systems"
+// by Nisan and Schocken, MIT Press.
+// File name: projects/05/CPU.hdl
+
+/**
+ * The Hack CPU (Central Processing unit), consisting of an ALU,
+ * two registers named A and D, and a program counter named PC.
+ * The CPU is designed to fetch and execute instructions written in
+ * the Hack machine language. In particular, functions as follows:
+ * Executes the inputted instruction according to the Hack machine
+ * language specification. The D and A in the language specification
+ * refer to CPU-resident registers, while M refers to the external
+ * memory location addressed by A, i.e. to Memory[A]. The inM input
+ * holds the value of this location. If the current instruction needs
+ * to write a value to M, the value is placed in outM, the address
+ * of the target location is placed in the addressM output, and the
+ * writeM control bit is asserted. (When writeM==0, any value may
+ * appear in outM). The outM and writeM outputs are combinational:
+ * they are affected instantaneously by the execution of the current
+ * instruction. The addressM and pc outputs are clocked: although they
+ * are affected by the execution of the current instruction, they commit
+ * to their new values only in the next time step. If reset==1 then the
+ * CPU jumps to address 0 (i.e. pc is set to 0 in next time step) rather
+ * than to the address resulting from executing the current instruction.
+ */
+
+CHIP CPU {
+
+    IN  inM[16],         // M value input  (M = contents of RAM[A])
+        instruction[16], // Instruction for execution
+        reset;           // Signals whether to re-start the current
+                         // program (reset==1) or continue executing
+                         // the current program (reset==0).
+
+    OUT outM[16],        // M value output
+        writeM,          // Write to M?
+        addressM[15],    // Address in data memory (of M)
+        pc[15];          // address of next instruction
+
+    PARTS:
+    // Put your code here:
+
+    // Instruction Decoding and Execution
+
+    // ARegister
+    // If A-instruction then store in AReg
+    Mux16(a=ALUout, b=instruction, sel=ainstr, out=MUX1out);
+    Buffer(in=instruction[15], out=cinstr);
+    Not(in=cinstr, out=ainstr);
+    Or(a=ainstr, b=instruction[5], out=loadA);
+    ARegister(in=MUX1out, load=loadA, out=AREGISTERout, out[0..14]=addressM);
+
+    // DRegister
+    And(a=cinstr, b=instruction[4], out=loadD);
+    DRegister(in=ALUout, load=loadD, out=DREGISTERout);
+
+    // ALU
+    And(a=cinstr, b=instruction[12], out=selchoice);
+    Mux16(a=AREGISTERout, b=inM, sel=selchoice, out=MUX2out);
+    ALU(x=DREGISTERout, y=MUX2out, zx=instruction[11], nx=instruction[10], zy=instruction[9], ny=instruction[8], f=instruction[7], no=instruction[6], out=outM, out=ALUout, zr=zr, ng=ng);
+    And(a=cinstr, b=instruction[3], out=writeM);
+    And(a=cinstr, b=ng, out=ngflag);
+    And(a=cinstr, b=zr, out=zrflag);
+
+
+    // Next Instruction Fetching
+    And(a=cinstr, b=true, out=allowjumps);
+    Not(in=setjump, out=nojumpset);
+    Or(a=nojumpset, b=nojmp, out=increment);
+
+    PC(in=AREGISTERout, load=setjump, inc=increment, reset=reset, out[0..14]=pc);
+
+    // Jump logic
+    // Classifying ALU outputs as positive, negative or zero
+    Not(in=zrflag, out=zrcomp);
+    Not(in=ngflag, out=ngcomp);
+    And(a=ngcomp, b=zrcomp, out=pos);
+    And(a=ngcomp, b=zrflag, out=zero);
+    And(a=ngflag, b=zrcomp, out=neg);
+    Not(in=pos, out=NOTpos);
+    Not(in=neg, out=NOTneg);
+    Not(in=zero, out=NOTzero);
+
+    // Jump Varieties
+    DMux8Way(in=allowjumps, sel=instruction[0..2], a=nojmp, b=jgt, c=jeq, d=jge, e=jlt, f=jne, g=jle, h=jmp);
+
+    // Test if the ALU outputs fit the jump criteria
+    And(a=jgt, b=pos, out=satgt);
+    And(a=jeq, b=zero, out=sateq);
+    And(a=jlt, b=neg, out=satlt);
+    And(a=jle, b=NOTpos, out=satle);
+    And(a=jne, b=NOTzero, out=satne);
+    And(a=jge, b=NOTneg, out=satge);
+
+    Or(a=satgt, b=sateq, out=OR1);
+    Or(a=OR1, b=satlt, out=OR2);
+    Or(a=OR2, b=satle, out=OR3);
+    Or(a=OR3, b=satne, out=OR4);
+    Or(a=OR4, b=satge, out=OR5);
+    Or(a=OR5, b=jmp, out=setjump);
+}

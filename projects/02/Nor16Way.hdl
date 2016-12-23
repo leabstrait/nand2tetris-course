@@ -1,0 +1,14 @@
+// This file is created as a helper
+// function for ALU.hdl in this folder.
+// File name: projects/02/Nor16Way.hdl
+
+CHIP Nor16Way{
+      IN in[16];
+      OUT out;
+
+      PARTS:
+      Or8Way(in=in[0..7], out=sum1);
+      Or8Way(in=in[8..15], out=sum2);
+      Or(a=sum1, b=sum2, out=outOR16Way);
+      Not(in=outOR16Way, out=out);
+}
